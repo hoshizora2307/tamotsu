@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Sato Tamotsu Shooting</title>
+    <style>
+        body { margin: 0; background: #222; overflow: hidden; color: white; font-family: sans-serif; }
+        canvas { display: block; background: #333; margin: 20px auto; border: 4px solid #fff; }
+        .info { text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h1>佐藤 保 - SKINHEAD JUSTICE</h1>
+        <p>移動: 矢印キー / 攻撃: スペースキー</p>
+        <h2 id="score">SCORE: 0</h2>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+
+canvas.width = 800;
+canvas.height = 400;
+
+let score = 0;
+let gameOver = false;
+
+// キー入力管理
+const keys = {};
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+// 主人公：佐藤 保
+const sato = {
+    x: 50,
+    y: 200,
+    width: 40,
+    height: 60,
+    speed: 5,
+    draw() {
+        // 体（ガタイの良さを表現）
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillRect(this.x, this.y + 20, this.width, this.height - 20);
+        
+        // スキンヘッド（輝き）
+        ctx.fillStyle = '#ffdbac';
+        ctx.beginPath();
+        ctx.arc(this.x + 20, this.y + 15, 20, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 頭のテカリ
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.beginPath();
+        ctx.arc(this.x + 15, this.y + 10, 5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+};
+
+// 弾と敵の管理
+let bullets = [];
+let enemies = [];
+
+function spawnEnemy() {
+    if (gameOver) return;
+    enemies.push({
+        x: canvas.width,
+        y: Math.random() * (canvas.height - 30),
+        width: 30,
+        height: 30,
+        speed: 3 + (score / 100)
+    });
+    setTimeout(spawnEnemy, 1000 - (score > 500 ? 500 : score));
+}
+
+function update() {
+    if (gameOver) return;
+
+    // 移動ロジック
+    if (keys['ArrowUp'] && sato.y > 0) sato.y -= sato.speed;
+    if (keys['ArrowDown'] && sato.y < canvas.height - sato.height) sato.y += sato.speed;
+    if (keys['Space']) {
+        if (bullets.length === 0 || bullets[bullets.length-1].x < sato.x + 100) {
+            bullets.push({ x: sato.x + 40, y: sato.y + 15, speed: 10 });
+        }
+    }
+
+    // 弾の移動
+    bullets.forEach((b, i) => {
+        b.x += b.speed;
+        if (b.x > canvas.width) bullets.splice(i, 1);
+    });
+
+    // 敵の移動と当たり判定
+    enemies.forEach((en, i) => {
+        en.x -= en.speed;
+        
+        // 佐藤さんと敵の衝突
+        if (en.x < sato.x + sato.width && en.x + en.width > sato.x &&
+            en.y < sato.y + sato.height && en.y + en.height > sato.y) {
+            gameOver = true;
+            alert("佐藤 保、力尽きたり…。 SCORE: " + score);
+            location.reload();
+        }
+
+        // 弾と敵の衝突
+        bullets.forEach((b, bi) => {
+            if (b.x < en.x + en.width && b.x + 10 > en.x &&
+                b.y < en.y + en.height && b.y + 5 > en.y) {
+                enemies.splice(i, 1);
+                bullets.splice(bi, 1);
+                score += 10;
+                scoreElement.innerText = `SCORE: ${score}`;
+            }
+        });
+
+        if (en.x < -30) enemies.splice(i, 1);
+    });
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    sato.draw();
+
+    // 弾の描画
+    ctx.fillStyle = '#f1c40f';
+    bullets.forEach(b => ctx.fillRect(b.x, b.y, 15, 5));
+
+    // 敵の描画
+    ctx.fillStyle = '#e74c3c';
+    enemies.forEach(en => ctx.fillRect(en.x, en.y, en.width, en.height));
+
+    requestAnimationFrame(() => {
+        update();
+        draw();
+    });
+}
+
+spawnEnemy();
+draw();
+</script>
+</body>
+</html>
