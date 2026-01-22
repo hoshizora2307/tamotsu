@@ -2,18 +2,19 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Sato Tamotsu Shooting</title>
+    <title>Sato Tamotsu Shooting - Image Ver</title>
     <style>
-        body { margin: 0; background: #222; overflow: hidden; color: white; font-family: sans-serif; }
-        canvas { display: block; background: #333; margin: 20px auto; border: 4px solid #fff; }
-        .info { text-align: center; }
+        body { margin: 0; background: #1a1a1a; overflow: hidden; color: white; font-family: 'Arial Black', sans-serif; }
+        canvas { display: block; background: #333; margin: 20px auto; border: 5px solid #ffd700; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .info { text-align: center; text-shadow: 2px 2px 4px #000; }
+        #score { font-size: 2em; color: #ff4500; }
     </style>
 </head>
 <body>
     <div class="info">
-        <h1>佐藤 保 - SKINHEAD JUSTICE</h1>
+        <h1>佐藤 保：スキンヘッド・リベンジ</h1>
         <p>移動: 矢印キー / 攻撃: スペースキー</p>
-        <h2 id="score">SCORE: 0</h2>
+        <div id="score">SCORE: 0</div>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -22,14 +23,17 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 
-canvas.width = 800;
-canvas.height = 400;
+canvas.width = 900;
+canvas.height = 500;
+
+// 画像の読み込み
+const satoImg = new Image();
+satoImg.src = 'tamotsu.png'; // ここに画像ファイル名を指定
 
 let score = 0;
 let gameOver = false;
-
-// キー入力管理
 const keys = {};
+
 window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
 
@@ -37,29 +41,21 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 const sato = {
     x: 50,
     y: 200,
-    width: 40,
-    height: 60,
-    speed: 5,
+    width: 80,  // ガタイの良さを出すために少し大きく設定
+    height: 100,
+    speed: 7,
     draw() {
-        // 体（ガタイの良さを表現）
-        ctx.fillStyle = '#2c3e50';
-        ctx.fillRect(this.x, this.y + 20, this.width, this.height - 20);
-        
-        // スキンヘッド（輝き）
-        ctx.fillStyle = '#ffdbac';
-        ctx.beginPath();
-        ctx.arc(this.x + 20, this.y + 15, 20, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // 頭のテカリ
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.beginPath();
-        ctx.arc(this.x + 15, this.y + 10, 5, 0, Math.PI * 2);
-        ctx.fill();
+        if (satoImg.complete) {
+            // 画像を描画
+            ctx.drawImage(satoImg, this.x, this.y, this.width, this.height);
+        } else {
+            // 画像がない場合の代用（デバッグ用）
+            ctx.fillStyle = '#ffdbac';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
     }
 };
 
-// 弾と敵の管理
 let bullets = [];
 let enemies = [];
 
@@ -67,48 +63,46 @@ function spawnEnemy() {
     if (gameOver) return;
     enemies.push({
         x: canvas.width,
-        y: Math.random() * (canvas.height - 30),
-        width: 30,
-        height: 30,
-        speed: 3 + (score / 100)
+        y: Math.random() * (canvas.height - 40),
+        width: 40,
+        height: 40,
+        speed: 4 + (score / 200)
     });
-    setTimeout(spawnEnemy, 1000 - (score > 500 ? 500 : score));
+    setTimeout(spawnEnemy, Math.max(200, 1000 - score));
 }
 
 function update() {
     if (gameOver) return;
 
-    // 移動ロジック
     if (keys['ArrowUp'] && sato.y > 0) sato.y -= sato.speed;
     if (keys['ArrowDown'] && sato.y < canvas.height - sato.height) sato.y += sato.speed;
+    
+    // スペース長押し連射制限
     if (keys['Space']) {
-        if (bullets.length === 0 || bullets[bullets.length-1].x < sato.x + 100) {
-            bullets.push({ x: sato.x + 40, y: sato.y + 15, speed: 10 });
+        if (bullets.length === 0 || bullets[bullets.length-1].x < sato.x + 120) {
+            bullets.push({ x: sato.x + sato.width, y: sato.y + sato.height/3, speed: 12 });
         }
     }
 
-    // 弾の移動
     bullets.forEach((b, i) => {
         b.x += b.speed;
         if (b.x > canvas.width) bullets.splice(i, 1);
     });
 
-    // 敵の移動と当たり判定
     enemies.forEach((en, i) => {
         en.x -= en.speed;
         
-        // 佐藤さんと敵の衝突
-        if (en.x < sato.x + sato.width && en.x + en.width > sato.x &&
-            en.y < sato.y + sato.height && en.y + en.height > sato.y) {
+        // 当たり判定（佐藤 保 vs 敵）
+        if (en.x < sato.x + sato.width * 0.8 && en.x + en.width > sato.x + sato.width * 0.2 &&
+            en.y < sato.y + sato.height * 0.8 && en.y + en.height > sato.y + sato.height * 0.2) {
             gameOver = true;
-            alert("佐藤 保、力尽きたり…。 SCORE: " + score);
+            alert("佐藤 保、散る！ スコア: " + score);
             location.reload();
         }
 
-        // 弾と敵の衝突
         bullets.forEach((b, bi) => {
-            if (b.x < en.x + en.width && b.x + 10 > en.x &&
-                b.y < en.y + en.height && b.y + 5 > en.y) {
+            if (b.x < en.x + en.width && b.x + 20 > en.x &&
+                b.y < en.y + en.height && b.y + 10 > en.y) {
                 enemies.splice(i, 1);
                 bullets.splice(bi, 1);
                 score += 10;
@@ -116,21 +110,34 @@ function update() {
             }
         });
 
-        if (en.x < -30) enemies.splice(i, 1);
+        if (en.x < -50) enemies.splice(i, 1);
     });
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 背景に少しグラデーション
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, '#333');
+    grad.addColorStop(1, '#111');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     sato.draw();
 
-    // 弾の描画
-    ctx.fillStyle = '#f1c40f';
-    bullets.forEach(b => ctx.fillRect(b.x, b.y, 15, 5));
+    // 弾の描画（光る弾）
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#00ffff';
+    bullets.forEach(b => ctx.fillRect(b.x, b.y, 20, 4));
+    ctx.shadowBlur = 0;
 
     // 敵の描画
-    ctx.fillStyle = '#e74c3c';
-    enemies.forEach(en => ctx.fillRect(en.x, en.y, en.width, en.height));
+    ctx.fillStyle = '#ff4d4d';
+    enemies.forEach(en => {
+        ctx.fillRect(en.x, en.y, en.width, en.height);
+    });
 
     requestAnimationFrame(() => {
         update();
@@ -138,8 +145,11 @@ function draw() {
     });
 }
 
-spawnEnemy();
-draw();
+// 画像の読み込み完了を待ってから開始
+satoImg.onload = () => {
+    spawnEnemy();
+    draw();
+};
 </script>
 </body>
 </html>
