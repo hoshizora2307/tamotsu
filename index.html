@@ -2,11 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Sato Tamotsu Shooting - Image Ver</title>
+    <title>Sato Tamotsu Shooting - Robust Ver</title>
     <style>
         body { margin: 0; background: #1a1a1a; overflow: hidden; color: white; font-family: 'Arial Black', sans-serif; }
-        canvas { display: block; background: #333; margin: 20px auto; border: 5px solid #ffd700; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        .info { text-align: center; text-shadow: 2px 2px 4px #000; }
+        canvas { display: block; background: #333; margin: 20px auto; border: 5px solid #ffd700; }
+        .info { text-align: center; }
         #score { font-size: 2em; color: #ff4500; }
     </style>
 </head>
@@ -26,10 +26,21 @@ const scoreElement = document.getElementById('score');
 canvas.width = 900;
 canvas.height = 500;
 
-// 画像の読み込み
+// --- 画像の準備 ---
 const satoImg = new Image();
-satoImg.src = 'tamotsu.png'; // ここに画像ファイル名を指定
+let isImageLoaded = false;
+satoImg.src = 'tamotsu.png'; // 画像ファイル名をチェック！
 
+satoImg.onload = () => {
+    isImageLoaded = true;
+    console.log("画像読み込み成功");
+};
+
+satoImg.onerror = () => {
+    console.error("画像が見つかりません: tamotsu.png をHTMLと同じフォルダに置いてください。");
+};
+
+// --- ゲーム設定 ---
 let score = 0;
 let gameOver = false;
 const keys = {};
@@ -37,21 +48,21 @@ const keys = {};
 window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
 
-// 主人公：佐藤 保
 const sato = {
     x: 50,
     y: 200,
-    width: 80,  // ガタイの良さを出すために少し大きく設定
+    width: 80,
     height: 100,
     speed: 7,
     draw() {
-        if (satoImg.complete) {
-            // 画像を描画
+        if (isImageLoaded) {
             ctx.drawImage(satoImg, this.x, this.y, this.width, this.height);
         } else {
-            // 画像がない場合の代用（デバッグ用）
+            // 画像がない時の代わりの「佐藤 保（肉色の四角）」
             ctx.fillStyle = '#ffdbac';
             ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.fillStyle = '#fff';
+            ctx.fillText("画像なし", this.x + 10, this.y + 30);
         }
     }
 };
@@ -68,7 +79,7 @@ function spawnEnemy() {
         height: 40,
         speed: 4 + (score / 200)
     });
-    setTimeout(spawnEnemy, Math.max(200, 1000 - score));
+    setTimeout(spawnEnemy, Math.max(300, 1000 - score / 5));
 }
 
 function update() {
@@ -77,9 +88,8 @@ function update() {
     if (keys['ArrowUp'] && sato.y > 0) sato.y -= sato.speed;
     if (keys['ArrowDown'] && sato.y < canvas.height - sato.height) sato.y += sato.speed;
     
-    // スペース長押し連射制限
     if (keys['Space']) {
-        if (bullets.length === 0 || bullets[bullets.length-1].x < sato.x + 120) {
+        if (bullets.length === 0 || bullets[bullets.length-1].x < sato.x + 150) {
             bullets.push({ x: sato.x + sato.width, y: sato.y + sato.height/3, speed: 12 });
         }
     }
@@ -92,9 +102,9 @@ function update() {
     enemies.forEach((en, i) => {
         en.x -= en.speed;
         
-        // 当たり判定（佐藤 保 vs 敵）
-        if (en.x < sato.x + sato.width * 0.8 && en.x + en.width > sato.x + sato.width * 0.2 &&
-            en.y < sato.y + sato.height * 0.8 && en.y + en.height > sato.y + sato.height * 0.2) {
+        // 当たり判定
+        if (en.x < sato.x + sato.width * 0.7 && en.x + en.width > sato.x + sato.width * 0.3 &&
+            en.y < sato.y + sato.height * 0.7 && en.y + en.height > sato.y + sato.height * 0.3) {
             gameOver = true;
             alert("佐藤 保、散る！ スコア: " + score);
             location.reload();
@@ -117,39 +127,32 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 背景に少しグラデーション
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, '#333');
-    grad.addColorStop(1, '#111');
-    ctx.fillStyle = grad;
+    // 背景
+    ctx.fillStyle = '#222';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     sato.draw();
 
-    // 弾の描画（光る弾）
-    ctx.fillStyle = '#00ffff';
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#00ffff';
-    bullets.forEach(b => ctx.fillRect(b.x, b.y, 20, 4));
-    ctx.shadowBlur = 0;
+    // 弾
+    ctx.fillStyle = '#ffff00';
+    bullets.forEach(b => ctx.fillRect(b.x, b.y, 20, 5));
 
-    // 敵の描画
+    // 敵
     ctx.fillStyle = '#ff4d4d';
-    enemies.forEach(en => {
-        ctx.fillRect(en.x, en.y, en.width, en.height);
-    });
+    enemies.forEach(en => ctx.fillRect(en.x, en.y, en.width, en.height));
 
-    requestAnimationFrame(() => {
-        update();
-        draw();
-    });
+    requestAnimationFrame(gameLoop);
 }
 
-// 画像の読み込み完了を待ってから開始
-satoImg.onload = () => {
-    spawnEnemy();
+// ループ関数を分離
+function gameLoop() {
+    update();
     draw();
-};
+}
+
+// 即座に開始！
+spawnEnemy();
+gameLoop();
 </script>
 </body>
 </html>
